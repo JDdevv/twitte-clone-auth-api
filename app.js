@@ -47,7 +47,7 @@ app.post("/login", ( req , res ) => {
 		bcrypt.compare( password , user.password , ( err , result ) => {
             if ( err ) return res.send(500)
             if ( !result ) return res.send(401)
-            const accessToken = jwt.sign({_id:user._id,username:user.username,},process.env.JWT_SECRET,{expiresIn:"30s"})
+            const accessToken = jwt.sign({_id:user._id,username:user.username,},process.env.JWT_SECRET,{expiresIn:"1h"})
             const refreshToken = jwt.sign({_id:user._id,username:user.username}, process.env.REFRESH_TOKEN_SECRET,{expiresIn:"7d"})
             const newRefreshToken = new RefreshToken({
                 userId : user._id,
@@ -97,5 +97,52 @@ app.post("/validateToken" , ( req , res ) => {
 })
 
 
+
+app.patch("/users/follow/:userId", validateRequest ,  ( req , res ) => {
+    const userFollowing = req.user._id
+    User.findOne({_id:req.params.userId} , ( err , userToFollow ) => {
+        if ( err ) return res.sendStatus(500)
+        if ( !userToFollow ) return res.sendStatus(404)
+        if ( userToFollow.followers.includes( userFollowing) ) {
+
+            // Adding the current user to the followers of user being followed
+            userToFollow.followers.splice(userToFollow.followers.indexOf(userFollowing))
+            userToFollow.save()
+            //Adding the user being followed to the following of the current user
+            User.findOne({_id:userFollowing} , ( err , user ) => {
+                if ( err ) res.sendStatus(500)
+                user.following.splice(user.following.indexOf( userToFollow._id))
+                user.save( err => {
+                    if ( err ) return res.sendStatus(500)
+                    return res.sendStatus(200)
+                })
+            })
+        } else {
+            // Adding the current user to the followers of user being followed
+            userToFollow.followers.push( userFollowing) 
+            userToFollow.save()
+            //Adding the user being followed to the following of the current user
+            User.findOne({_id:userFollowing} , ( err , user ) => {
+                user.following.push( userToFollow._id ) 
+                user.save(err => {
+                    if ( err )return res.sendStatus( 500 ) 
+                    return res.sendStatus(200)
+                })
+            })
+        }
+    })
+})
+
+app.get("/userInfo/:userId" , ( req , res ) => {
+    const {userId} = req.params
+    User.findOne({_id: userId}, ( err , user ) => {
+        if ( !user ) return res.sendStatus(400)
+        if ( err ) return res.sendStatus(500)
+        return res.json({
+            username:user.username,
+            descritption: user.descritption
+        })
+    })
+})
 
 app.listen(port , () => console.log("auth server running on port: " + port.toString()))

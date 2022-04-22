@@ -5,7 +5,7 @@ function validateRequest( req , res , next ) {
 	jwt.verify( token , process.env.JWT_SECRET, ( err , decoded ) => {
 		if ( err ) return res.sendStatus(403)
 		if ( decoded ) {
-			req.token = decoded
+			req.user = decoded
 			next()
 		}
 	})
