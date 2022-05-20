@@ -12,7 +12,7 @@ const port = process.env.PORT || 4000
 const app = express()
 app.use(express.json())
 app.use(cors({
-    allowedHeaders:"application/json",
+    allowedHeaders:"Content-Type",
     origin: process.env.FRONTEND_URL || "*"
 }))
 
@@ -41,13 +41,14 @@ app.post("/register", ( req , res ) => {
 app.post("/login", ( req , res ) => {
     const { username , password } = req.body
     if ( !username || !password ) return res.send(400)
+    console.log(req.body)
 	User.findOne( {username:username} , (err, user) => {
 		if ( !user ) return res.sendStatus(404)
         if ( err ) return res.send(500)
 		bcrypt.compare( password , user.password , ( err , result ) => {
             if ( err ) return res.send(500)
             if ( !result ) return res.send(401)
-            const accessToken = jwt.sign({_id:user._id,username:user.username,},process.env.JWT_SECRET,{expiresIn:"1h"})
+            const accessToken = jwt.sign({_id:user._id,username:user.username,},process.env.JWT_SECRET,{expiresIn:"10s"})
             const refreshToken = jwt.sign({_id:user._id,username:user.username}, process.env.REFRESH_TOKEN_SECRET,{expiresIn:"7d"})
             const newRefreshToken = new RefreshToken({
                 userId : user._id,
@@ -135,12 +136,15 @@ app.patch("/users/follow/:userId", validateRequest ,  ( req , res ) => {
 
 app.get("/userInfo/:userId" , ( req , res ) => {
     const {userId} = req.params
+    if ( !userId ) return res.sendStatus(400)
     User.findOne({_id: userId}, ( err , user ) => {
-        if ( !user ) return res.sendStatus(400)
+        if ( !user ) return res.sendStatus(404)
         if ( err ) return res.sendStatus(500)
         return res.json({
             username:user.username,
-            descritption: user.descritption
+            descritption: user.descritption,
+            followers : user.followers,
+            following : user.following
         })
     })
 })
