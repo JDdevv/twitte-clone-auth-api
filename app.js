@@ -7,13 +7,15 @@ const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const cors = require("cors")
 const express = require("express")
+const { compareSync } = require("bcrypt")
 //APP CONFIG
 const port = process.env.PORT || 4000
 const app = express()
 app.use(express.json())
 app.use(cors({
-    allowedHeaders:"Content-Type",
-    origin: process.env.FRONTEND_URL || "*"
+    allowedHeaders:["Content-Type","authorization"],
+    origin: "*",
+    methods:["PATCH","POST"],
 }))
 
 //ROUTING
@@ -58,7 +60,8 @@ app.post("/login", ( req , res ) => {
                 if ( err ) return res.sendStatus(500)
                res.json({
                     accessToken : accessToken,
-                    refreshToken : refreshToken
+                    refreshToken : refreshToken,
+                    userId : user._id
                 })
             })
         })
@@ -100,20 +103,24 @@ app.post("/validateToken" , ( req , res ) => {
 
 
 app.patch("/users/follow/:userId", validateRequest ,  ( req , res ) => {
+    console.log(req.user)
     const userFollowing = req.user._id
+    if ( req.params.userId === userFollowing ) return res.sendStatus(400)
     User.findOne({_id:req.params.userId} , ( err , userToFollow ) => {
         if ( err ) return res.sendStatus(500)
         if ( !userToFollow ) return res.sendStatus(404)
         if ( userToFollow.followers.includes( userFollowing) ) {
 
-            // Adding the current user to the followers of user being followed
+            // Removing the current user from the followers of user being followed
             userToFollow.followers.splice(userToFollow.followers.indexOf(userFollowing))
             userToFollow.save()
-            //Adding the user being followed to the following of the current user
+            //Removing the user being followed from the following of the current user
             User.findOne({_id:userFollowing} , ( err , user ) => {
+                console.log(err)
                 if ( err ) res.sendStatus(500)
                 user.following.splice(user.following.indexOf( userToFollow._id))
                 user.save( err => {
+
                     if ( err ) return res.sendStatus(500)
                     return res.sendStatus(200)
                 })
@@ -124,6 +131,8 @@ app.patch("/users/follow/:userId", validateRequest ,  ( req , res ) => {
             userToFollow.save()
             //Adding the user being followed to the following of the current user
             User.findOne({_id:userFollowing} , ( err , user ) => {
+
+                console.log(err)
                 user.following.push( userToFollow._id ) 
                 user.save(err => {
                     if ( err )return res.sendStatus( 500 ) 
@@ -136,15 +145,56 @@ app.patch("/users/follow/:userId", validateRequest ,  ( req , res ) => {
 
 app.get("/userInfo/:userId" , ( req , res ) => {
     const {userId} = req.params
+    const token = req.headers.authorization
     if ( !userId ) return res.sendStatus(400)
     User.findOne({_id: userId}, ( err , user ) => {
         if ( !user ) return res.sendStatus(404)
         if ( err ) return res.sendStatus(500)
-        return res.json({
-            username:user.username,
-            descritption: user.descritption,
-            followers : user.followers,
-            following : user.following
+        jwt.verify(  token , process.env.JWT_SECRET , ( err , decoded ) => {
+            //Data that should be returned if the requesting user is not logged.
+            if ( err ) {
+                return res.json({
+                    user : {
+                        username:user.username,
+                        descritption: user.descritption,
+                        followers : user.followers,
+                        following : user.following,
+                        sameUser : false,
+                        isFollowing : false
+                    }
+                })
+            }
+            //Data that should be returned if the requesting user and the requested user are the same
+            if ( decoded._id === user.id ) {
+                console.log(27)
+                return res.json({
+                    user: {
+                        username:user.username,
+                        descritption: user.descritption,
+                        followers : user.followers,
+                        following : user.following,
+                        sameUser : true,
+                        isFollowing : false
+                    }
+                })
+            }
+            //Data that should be returned if the requesting user is logged but is not the same as the requested user
+            if ( decoded && decoded._id != user.id ) {
+
+                    console.log(28)
+                    return res.json({
+                        user: {
+                            username:user.username,
+                            descritption: user.descritption,
+                            followers : user.followers,
+                            following : user.following,
+                            sameUser : false ,
+                            //Check if the requesting user is following the requested one
+                            isFollowing :  user.followers.includes(decoded._id)
+                        }
+                })
+            }
+            console.log(13)
         })
     })
 })
