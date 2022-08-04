@@ -194,7 +194,6 @@ app.get("/userInfo/:userId" , ( req , res ) => {
                         }
                 })
             }
-            console.log(13)
         })
     })
 })
