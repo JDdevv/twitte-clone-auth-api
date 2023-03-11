@@ -20,11 +20,16 @@ app.use(cors({
 
 //ROUTING
 app.post("/register", ( req , res ) => {
+    //Recieves an username and a password in the body of the post request
     const { username , password } = req.body
+    // If the username or password are missing returns and error
 	if (!username || !password  ) return res.sendStatus(400)
+    //If the username and password are valid, checks the database to see if the username already exists
 	User.findOne({username:username} , ( err , user ) => {
 		if ( err ) return res.sendStatus(500)
 		if ( user ) return res.sendStatus(409)
+        //If the username does not exists, creates a hash of the password, 
+        //and then creates a new user object in the db, with the username and the hash
 		bcrypt.hash( password , 10 , ( err , hash ) => {
 			if( err ) return res.sendStatus(500)
 			const newUser = new User({
@@ -41,12 +46,16 @@ app.post("/register", ( req , res ) => {
 })
 
 app.post("/login", ( req , res ) => {
-    const { username , password } = req.body
-    if ( !username || !password ) return res.send(400)
     console.log(req.body)
+    //Receives an username and a password in the request body
+    const { username , password } = req.body
+    //Checks if any of the credentials are missing
+    if ( !username || !password ) return res.send(400)
+    //If both username and password are valid, checks if the username exists on the db
 	User.findOne( {username:username} , (err, user) => {
 		if ( !user ) return res.sendStatus(404)
         if ( err ) return res.send(500)
+        //If the user exists, the received password is hashed and then compared with the hash stored in the db
 		bcrypt.compare( password , user.password , ( err , result ) => {
             if ( err ) return res.send(500)
             if ( !result ) return res.send(401)
@@ -154,44 +163,35 @@ app.get("/userInfo/:userId" , ( req , res ) => {
             //Data that should be returned if the requesting user is not logged.
             if ( err ) {
                 return res.json({
-                    user : {
-                        username:user.username,
-                        descritption: user.descritption,
-                        followers : user.followers,
-                        following : user.following,
-                        sameUser : false,
-                        isFollowing : false
-                    }
+                    username:user.username,
+                    descritption: user.descritption,
+                    followers : user.followers,
+                    following : user.following,
+                    sameUser : false,
+                    isFollowing : false
                 })
             }
             //Data that should be returned if the requesting user and the requested user are the same
             if ( decoded._id === user.id ) {
-                console.log(27)
                 return res.json({
-                    user: {
-                        username:user.username,
-                        descritption: user.descritption,
-                        followers : user.followers,
-                        following : user.following,
-                        sameUser : true,
-                        isFollowing : false
-                    }
+                    username:user.username,
+                    descritption: user.descritption,
+                    followers : user.followers,
+                    following : user.following,
+                    sameUser : true,
+                    isFollowing : false
                 })
             }
             //Data that should be returned if the requesting user is logged but is not the same as the requested user
             if ( decoded && decoded._id != user.id ) {
-
-                    console.log(28)
-                    return res.json({
-                        user: {
-                            username:user.username,
-                            descritption: user.descritption,
-                            followers : user.followers,
-                            following : user.following,
-                            sameUser : false ,
-                            //Check if the requesting user is following the requested one
-                            isFollowing :  user.followers.includes(decoded._id)
-                        }
+                return res.json({
+                    username:user.username,
+                    descritption: user.descritption,
+                    followers : user.followers,
+                    following : user.following,
+                    sameUser : false ,
+                    //Check if the requesting user is following the requested one
+                    isFollowing :  user.followers.includes(decoded._id)
                 })
             }
         })
