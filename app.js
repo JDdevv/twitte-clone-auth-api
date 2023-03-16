@@ -19,6 +19,9 @@ app.use(cors({
 }))
 
 //ROUTING
+app.get("/test", (req, res) =>{
+    res.json({data:"hello"})
+})
 app.post("/register", ( req , res ) => {
     //Recieves an username and a password in the body of the post request
     const { username , password } = req.body
