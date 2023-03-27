@@ -51,9 +51,10 @@ app.post("/register", ( req , res ) => {
 app.post("/login", ( req , res ) => {
     console.log(req.body)
     //Receives an username and a password in the request body
-    const { username , password } = req.body
+    const { username , password } = req.body.content
+    console.log(username,password)
     //Checks if any of the credentials are missing
-    if ( !username || !password ) return res.send(400)
+    if ( !username || !password ) return res.sendStatus(400)
     //If both username and password are valid, checks if the username exists on the db
 	User.findOne( {username:username} , (err, user) => {
 		if ( !user ) return res.sendStatus(404)
